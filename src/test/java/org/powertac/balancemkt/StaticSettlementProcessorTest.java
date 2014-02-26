@@ -247,10 +247,10 @@ public class StaticSettlementProcessorTest
     when(capacityControlService.getRegulationCapacity(bo6)).
       thenReturn(new RegulationCapacity(6.2, -5.4));
 
-    BalancingOrder bo6d = new BalancingOrder(b1, spec1, 0.6, 0.091);
-    tariffRepo.addBalancingOrder(bo6d);
-    when(capacityControlService.getRegulationCapacity(bo6d)).
-      thenReturn(new RegulationCapacity(6.2, -5.4));
+//    BalancingOrder bo6d = new BalancingOrder(b1, spec1, 0.6, 0.091);
+//    tariffRepo.addBalancingOrder(bo6d);
+//    when(capacityControlService.getRegulationCapacity(bo6d)).
+//      thenReturn(new RegulationCapacity(6.2, -5.4));
 
     ChargeInfo ci1 = new ChargeInfo(b1, 0);
     ci1.addBalancingOrder(bo1);
@@ -347,12 +347,12 @@ public class StaticSettlementProcessorTest
     when(capacityControlService.getRegulationCapacity(bo2)).
       thenReturn(new RegulationCapacity(62.0, 0.0));
 
-    BalancingOrder bo3 = new BalancingOrder(b1, spec1, 0.6, 0.0051);
+    BalancingOrder bo3 = new BalancingOrder(this.b1, spec1, 0.6, 0.0051);
     tariffRepo.addBalancingOrder(bo3);
     when(capacityControlService.getRegulationCapacity(bo3)).
       thenReturn(new RegulationCapacity(67.0, 0.0));
 
-    BalancingOrder bo4 = new BalancingOrder(b1, spec1, 0.6, 0.008);
+    BalancingOrder bo4 = new BalancingOrder(this.b1, spec1, 0.6, 0.008);
     tariffRepo.addBalancingOrder(bo4);
     when(capacityControlService.getRegulationCapacity(bo4)).
       thenReturn(new RegulationCapacity(30.0, 0.0));
@@ -372,7 +372,7 @@ public class StaticSettlementProcessorTest
     ci0.addBalancingOrder(bo2);
     brokerData.add(ci0);
 
-    ChargeInfo ci1 = new ChargeInfo(b1, 40);
+    ChargeInfo ci1 = new ChargeInfo(this.b1, 40);
     ci1.addBalancingOrder(bo3);
     ci1.addBalancingOrder(bo4);
     brokerData.add(ci1);
@@ -748,6 +748,163 @@ public class StaticSettlementProcessorTest
     assertEquals("b1.p1", -1.206, ci1.getBalanceChargeP1(), 1e-6);
     assertEquals("b2.p1", -0.603, ci2.getBalanceChargeP1(), 1e-6);
   }
+  
+  // Example from notes Mathijs, slope = 0, imbalance = -1
+  @Test
+  public void exMathijs ()
+  {
+    BalancingOrder bo0 = new BalancingOrder(b1, spec1, 1, 40);
+    tariffRepo.addBalancingOrder(bo0);
+    when(capacityControlService.getRegulationCapacity(bo0)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    BalancingOrder bo1 = new BalancingOrder(b2, spec2, 1, 20);
+    tariffRepo.addBalancingOrder(bo1);
+    when(capacityControlService.getRegulationCapacity(bo1)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    BalancingOrder bo2 = new BalancingOrder(b3, spec3, 1, 10);
+    tariffRepo.addBalancingOrder(bo2);
+    when(capacityControlService.getRegulationCapacity(bo2)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    BalancingOrder bo3 = new BalancingOrder(b4, spec4, 1, 30);
+    tariffRepo.addBalancingOrder(bo3);
+    when(capacityControlService.getRegulationCapacity(bo3)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    ChargeInfo ci1 = new ChargeInfo(b1, 0);
+    ci1.addBalancingOrder(bo0);
+    brokerData.add(ci1);
+
+    ChargeInfo ci2 = new ChargeInfo(b2, 1);
+    ci2.addBalancingOrder(bo1);
+    brokerData.add(ci2);
+    
+    ChargeInfo ci3 = new ChargeInfo(b3, -2);
+    ci3.addBalancingOrder(bo2);
+    brokerData.add(ci3);
+    
+    ChargeInfo ci4 = new ChargeInfo(b4, 0);
+    ci4.addBalancingOrder(bo3);
+    brokerData.add(ci4);
+    
+    pplus = 70;
+    pplusPrime = 0.0;
+    pminus = -1.0;
+    pminusPrime = 0.0;
+    uut.settle(context, brokerData);
+
+//Broker	balance	p1	p2	ex	cost	utility
+//0	0	-0	0	0	0	-0
+//1	1	30	0	0	0	30
+//2	-2	-80	20	1	10	-70
+//3	0	-0	0	0	0	-0
+//
+//DU:30.0
+    
+	System.out.println("P1 values (b0,b1,b2,b3): ("
+                       + ci1.getBalanceChargeP1()
+                       + "," + ci2.getBalanceChargeP1()
+                       + "," + ci3.getBalanceChargeP1()
+                       + "," + ci4.getBalanceChargeP1()
+                       + ")");
+    System.out.println("P2 values (b0,b1,b2,b3): ("
+            + ci1.getBalanceChargeP2()
+            + "," + ci2.getBalanceChargeP2()
+            + "," + ci3.getBalanceChargeP2()
+            + "," + ci4.getBalanceChargeP2()
+            + ")");
+    assertEquals("b1.p1 = 0", 0.0, ci1.getBalanceChargeP1(), 1e-4);
+    assertEquals("b2.p1 = 30", 30, ci2.getBalanceChargeP1(), 1e-4);
+    assertEquals("b3.p1 = -80", -80, ci3.getBalanceChargeP1(), 1e-4);
+    assertEquals("b4.p1 = 0", 0, ci4.getBalanceChargeP1(), 1e-4);
+	
+    assertEquals("b1.p2 = 0",   0, ci1.getBalanceChargeP2(), 1e-6);
+    assertEquals("b2.p2 = 0", 0, ci2.getBalanceChargeP2(), 1e-6);
+    assertEquals("b3.p2 = 20", 20, ci3.getBalanceChargeP2(), 1e-6);
+    assertEquals("b4.p2 = 0",   0.0, ci4.getBalanceChargeP2(), 1e-6);
+
+ }
+
+// Example from notes Mathijs, slope = 0, imbalance = 2
+  @Test
+  public void exMathijs_down ()
+  {
+    BalancingOrder bo0 = new BalancingOrder(b1, spec1, -1, -1);
+    tariffRepo.addBalancingOrder(bo0);
+    when(capacityControlService.getRegulationCapacity(bo0)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    BalancingOrder bo1 = new BalancingOrder(b2, spec2, -1, -3);
+    tariffRepo.addBalancingOrder(bo1);
+    when(capacityControlService.getRegulationCapacity(bo1)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    BalancingOrder bo2 = new BalancingOrder(b3, spec3, -1, -2);
+    tariffRepo.addBalancingOrder(bo2);
+    when(capacityControlService.getRegulationCapacity(bo2)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    BalancingOrder bo3 = new BalancingOrder(b4, spec4, -1, -4);
+    tariffRepo.addBalancingOrder(bo3);
+    when(capacityControlService.getRegulationCapacity(bo3)).
+      thenReturn(new RegulationCapacity(100, -100));
+
+    ChargeInfo ci1 = new ChargeInfo(b1, 0);
+    ci1.addBalancingOrder(bo0);
+    brokerData.add(ci1);
+
+    ChargeInfo ci2 = new ChargeInfo(b2, 1);
+    ci2.addBalancingOrder(bo1);
+    brokerData.add(ci2);
+    
+    ChargeInfo ci3 = new ChargeInfo(b3, -2);
+    ci3.addBalancingOrder(bo2);
+    brokerData.add(ci3);
+    
+    ChargeInfo ci4 = new ChargeInfo(b4, 3);
+    ci4.addBalancingOrder(bo3);
+    brokerData.add(ci4);
+    
+    pplus = 70;
+    pplusPrime = 0.0;
+    pminus = -1.0;
+    pminusPrime = 0.0;
+    uut.settle(context, brokerData);
+
+//Broker	balance	p1	p2	ex	cost	utility
+//0	0	-0	0	0	0	-0
+//1	1	1	0	0	0	1
+//2	-2	-6	0	0	0	-6
+//3	3	3	-6	2	-8	5
+//
+//DU:8.0
+    
+	System.out.println("P1 values (b0,b1,b2,b3): ("
+                       + ci1.getBalanceChargeP1()
+                       + "," + ci2.getBalanceChargeP1()
+                       + "," + ci3.getBalanceChargeP1()
+                       + "," + ci4.getBalanceChargeP1()
+                       + ")");
+    System.out.println("P2 values (b0,b1,b2,b3): ("
+            + ci1.getBalanceChargeP2()
+            + "," + ci2.getBalanceChargeP2()
+            + "," + ci3.getBalanceChargeP2()
+            + "," + ci4.getBalanceChargeP2()
+            + ")");
+    assertEquals("b1.p1 = 0", 0.0, ci1.getBalanceChargeP1(), 1e-4);
+    assertEquals("b2.p1 = 1", 1, ci2.getBalanceChargeP1(), 1e-4);
+    assertEquals("b3.p1 = -6", -6, ci3.getBalanceChargeP1(), 1e-4);
+    assertEquals("b4.p1 = 3", 3, ci4.getBalanceChargeP1(), 1e-4);
+	
+    assertEquals("b1.p2 = 0",   0, ci1.getBalanceChargeP2(), 1e-6);
+    assertEquals("b2.p2 = 0", 0, ci2.getBalanceChargeP2(), 1e-6);
+    assertEquals("b3.p2 = 0", 0, ci3.getBalanceChargeP2(), 1e-6);
+    assertEquals("b4.p2 = -6",   -6, ci4.getBalanceChargeP2(), 1e-6);
+
+ }
+
 
   // --------------------------------------------------------
 
